@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NutriScan - Food Nutrition Scanner</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    @keyframes scan { 0% { top: 0%; opacity: 0.8; } 50% { top: 92%; opacity: 1; } 100% { top: 0%; opacity: 0.8; } }
+    .scanner-line { animation: scan 1.4s infinite ease-in-out; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-bold text-xl shadow-md shadow-emerald-200">🥗</div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">NutriScan</h1>
+          <p class="text-xs text-slate-500 font-medium">Smart Food Photo & Macro Analyzer</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button id="editGoalsBtn" type="button" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">🎯 Set Goals</button>
+        <button id="viewHistoryBtn" type="button" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">📋 Diary (<span id="historyBadgeCount">0</span>)</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Edit Goals Modal -->
+  <div id="goalsModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-base font-bold text-slate-900">🎯 Customize Daily Macro Targets</h3>
+        <button id="closeGoalsModal" type="button" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label for="goalCaloriesInput" class="block font-semibold text-slate-700 mb-1">Daily Calories (kcal):</label>
+          <input type="number" id="goalCaloriesInput" value="2000" class="w-full border border-slate-300 rounded-lg p-2.5 font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label for="goalProteinInput" class="block font-semibold text-slate-700 mb-1">Protein (g):</label>
+            <input type="number" id="goalProteinInput" value="130" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          </div>
+          <div>
+            <label for="goalCarbsInput" class="block font-semibold text-slate-700 mb-1">Carbs (g):</label>
+            <input type="number" id="goalCarbsInput" value="220" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          </div>
+          <div>
+            <label for="goalFatsInput" class="block font-semibold text-slate-700 mb-1">Fats (g):</label>
+            <input type="number" id="goalFatsInput" value="65" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button id="saveGoalsBtn" type="button" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition">Save Targets</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Add Dish Modal -->
+  <div id="addDishModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-base font-bold text-slate-900">➕ Add New Dish to Plate</h3>
+        <button id="closeAddDishModal" type="button" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label for="newDishNameInput" class="block font-semibold text-slate-700 mb-1">Dish Name:</label>
+          <input type="text" id="newDishNameInput" placeholder="e.g. Boiled Eggs, Dahi, Paneer Tikka..." class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="newDishCategorySelect" class="block font-semibold text-slate-700 mb-1">Category:</label>
+            <select id="newDishCategorySelect" class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+              <option value="Dairy / Protein">Dairy / Protein</option>
+              <option value="Grains">Grains / Rice</option>
+              <option value="Breads">Breads / Roti</option>
+              <option value="Lentils">Lentils / Daal</option>
+              <option value="Legumes">Legumes / Beans</option>
+              <option value="Veggies">Veggies / Sabzi</option>
+              <option value="Eggs / Poultry">Eggs / Poultry</option>
+            </select>
+          </div>
+          <div>
+            <label for="newDishWeightInput" class="block font-semibold text-slate-700 mb-1">Portion Weight (g):</label>
+            <input type="number" id="newDishWeightInput" value="100" class="w-full border border-slate-300 rounded-lg p-2.5 font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button id="confirmAddDishBtn" type="button" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition">Add Dish</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Log Modal -->
+  <div id="historyModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] p-6 shadow-xl border border-slate-100 flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-900">📋 Today's Meal Diary</h3>
+        <button id="closeHistoryModal" type="button" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+      </div>
+      <div id="historyListContainer" class="flex-grow overflow-y-auto py-3 space-y-3"></div>
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+        <button id="clearHistoryBtn" type="button" class="text-xs text-rose-600 hover:text-rose-800 font-semibold">Clear Diary</button>
+        <button id="closeHistoryModal2" type="button" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toastNotification" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg border border-slate-700 flex items-center gap-2">
+    <span id="toastIcon">ℹ️</span>
+    <span id="toastMessage">Notification</span>
+  </div>
+
+  <!-- Main Container -->
+  <main class="flex-grow max-w-4xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- DAILY TARGET TRACKER STRIP -->
+    <section class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+        <div>
+          <h2 class="text-sm font-bold text-slate-900">Today's Macro Targets (<span id="todayDateLabel">Today</span>)</h2>
+          <p class="text-xs text-slate-500">Auto-resets daily so past calories don't bleed over:</p>
+        </div>
+        <div class="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md self-start sm:self-auto border border-emerald-200">
+          Target: <span id="summaryGoalText">2,000 kcal • 130g Protein</span>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <div class="flex justify-between text-slate-500 font-medium mb-1"><span>Calories</span><span id="targetCaloriesLabel">0 / 2000 kcal</span></div>
+          <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden"><div id="targetCaloriesBar" class="bg-amber-500 h-full transition-all duration-300" style="width: 0%"></div></div>
+        </div>
+        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <div class="flex justify-between text-slate-500 font-medium mb-1"><span>Protein</span><span id="targetProteinLabel">0 / 130g</span></div>
+          <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden"><div id="targetProteinBar" class="bg-blue-500 h-full transition-all duration-300" style="width: 0%"></div></div>
+        </div>
+        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <div class="flex justify-between text-slate-500 font-medium mb-1"><span>Carbohydrates</span><span id="targetCarbsLabel">0 / 220g</span></div>
+          <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden"><div id="targetCarbsBar" class="bg-emerald-500 h-full transition-all duration-300" style="width: 0%"></div></div>
+        </div>
+        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <div class="flex justify-between text-slate-500 font-medium mb-1"><span>Total Fats</span><span id="targetFatsLabel">0 / 65g</span></div>
+          <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden"><div id="targetFatsBar" class="bg-rose-500 h-full transition-all duration-300" style="width: 0%"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Upload / Camera Section -->
+    <section class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+        <div>
+          <h2 class="text-base font-semibold text-slate-900">Food Plate Photo</h2>
+          <p class="text-xs text-slate-500">Camera photos are auto-compressed for lightning fast mobile speed.</p>
+        </div>
+        <button id="topUploadBtn" type="button" class="self-start sm:self-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-md shadow-emerald-200 transition">📷 Take / Upload Photo</button>
+      </div>
+
+      <div id="dropzone" class="border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/20 rounded-2xl p-4 sm:p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center group relative">
+        <input type="file" id="fileInput" accept="image/*" capture="environment" class="hidden">
+        
+        <div id="uploadPrompt" class="hidden space-y-3 flex flex-col items-center py-8">
+          <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl">📸</div>
+          <span class="text-base font-bold text-emerald-700">Click to take photo or choose from gallery</span>
+        </div>
+
+        <div id="previewContainer" class="w-full max-w-md relative rounded-xl overflow-hidden border border-slate-200 bg-slate-950 shadow-md">
+          <img id="imagePreview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='260' viewBox='0 0 400 260'><rect width='400' height='260' fill='%231e293b'/><circle cx='200' cy='130' r='90' fill='%23334155'/><circle cx='200' cy='130' r='70' fill='%23fef08a'/><text x='200' y='135' font-family='sans-serif' font-size='14' font-weight='bold' fill='%23854d0e' text-anchor='middle'>Active Food Plate</text></svg>" alt="Food Plate" class="w-full h-64 sm:h-72 object-contain bg-slate-900">
+          <div id="scanLaser" class="hidden absolute left-0 right-0 h-1 bg-emerald-400 shadow-[0_0_14px_#34d399] scanner-line"></div>
+          <div class="absolute bottom-2.5 left-2.5 bg-slate-900/85 text-emerald-400 text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-slate-700 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="imageTagText">Active Plate Preview</span>
+          </div>
+          <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
+            <button id="clearPhotoBtn" type="button" class="bg-slate-900/80 hover:bg-rose-600 text-white rounded-lg px-2.5 py-1 text-xs font-medium transition">✕ Clear</button>
+            <button id="changePhotoBtn" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg px-3 py-1.5 text-xs font-semibold shadow-md transition">📷 Change Photo</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHAT'S ON YOUR PLATE QUICK SELECTOR & SEARCH -->
+    <section class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-slate-900">🎯 Select What Dish is on Your Plate:</h3>
+        <span class="text-xs text-slate-400">Drift-free base-100g math</span>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-xs">
+        <button type="button" class="meal-match-btn p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-slate-700 font-semibold border border-slate-200 transition flex flex-col items-center gap-1" data-match="paneer-paratha"><span class="text-xl">🫓</span><span>Paneer Paratha</span></button>
+        <button type="button" class="meal-match-btn p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-slate-700 font-semibold border border-slate-200 transition flex flex-col items-center gap-1" data-match="kabuli-pulao"><span class="text-xl">🍛</span><span>Kabuli Pulao</span></button>
+        <button type="button" class="meal-match-btn p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-slate-700 font-semibold border border-slate-200 transition flex flex-col items-center gap-1" data-match="dosa-platter"><span class="text-xl">🥞</span><span>Masala Dosa</span></button>
+        <button type="button" class="meal-match-btn p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-slate-700 font-semibold border border-slate-200 transition flex flex-col items-center gap-1" data-match="royal-thali"><span class="text-xl">🍽️</span><span>Indian Thali</span></button>
+        <button type="button" class="meal-match-btn p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-slate-700 font-semibold border border-slate-200 transition flex flex-col items-center gap-1" data-match="biryani-plate"><span class="text-xl">🍚</span><span>Dum Biryani</span></button>
+        <button type="button" class="meal-match-btn p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-slate-700 font-semibold border border-slate-200 transition flex flex-col items-center gap-1" data-match="roti-sabzi"><span class="text-xl">🫓</span><span>Roti Sabzi Dal</span></button>
+        <button type="button" class="meal-match-btn p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-slate-700 font-semibold border border-slate-200 transition flex flex-col items-center gap-1" data-match="rajma-chawal"><span class="text-xl">🧆</span><span>Rajma Chawal</span></button>
+      </div>
+
+      <form id="dishSearchForm" class="flex gap-2 pt-1">
+        <input type="text" id="dishSearchInput" placeholder="Eating something else? Type dish name (e.g., 'Chole Bhature', 'Paneer Paratha', 'Dal Khichdi')..." class="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow transition">Apply Dish</button>
+      </form>
+    </section>
+
+    <!-- Results Section -->
+    <section id="resultsSection" class="space-y-6">
+
+      <!-- TOP GRAND TOTAL CARD -->
+      <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 sm:p-6 text-white shadow-lg space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/80 pb-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Total Plate Nutrition</span>
+            <h3 class="text-xl font-extrabold text-white flex flex-wrap items-center gap-2">
+              <span id="plateTitle">Kabuli Pulao & Shorba Platter</span>
+              <span id="itemCountBadge" class="text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">5 Dishes</span>
+            </h3>
+          </div>
+          <div class="flex items-center gap-2 self-start sm:self-auto">
+            <div class="text-xs text-slate-300 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+              Total Weight: <span id="totalWeight" class="font-bold text-white">560g</span>
+            </div>
+            <button id="saveMealBtn" type="button" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow transition">💾 Save to Diary</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
+            <div class="flex items-center justify-between text-xs text-amber-400 font-medium mb-1"><span>TOTAL ENERGY</span><span>🔥</span></div>
+            <div class="text-2xl sm:text-3xl font-extrabold text-white" id="totalCalories">608</div>
+            <div class="text-xs text-slate-400">kcal</div>
+          </div>
+          <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
+            <div class="flex items-center justify-between text-xs text-blue-400 font-medium mb-1"><span>TOTAL PROTEIN</span><span>🥩</span></div>
+            <div class="text-2xl sm:text-3xl font-extrabold text-white" id="totalProtein">18.6</div>
+            <div class="text-xs text-slate-400">grams (g)</div>
+          </div>
+          <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
+            <div class="flex items-center justify-between text-xs text-emerald-400 font-medium mb-1"><span>TOTAL CARBS</span><span>🌾</span></div>
+            <div class="text-2xl sm:text-3xl font-extrabold text-white" id="totalCarbs">86.5</div>
+            <div class="text-xs text-slate-400">grams (g)</div>
+          </div>
+          <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
+            <div class="flex items-center justify-between text-xs text-rose-400 font-medium mb-1"><span>TOTAL FATS</span><span>🥑</span></div>
+            <div class="text-2xl sm:text-3xl font-extrabold text-white" id="totalFats">20.2</div>
+            <div class="text-xs text-slate-400">grams (g)</div>
+          </div>
+        </div>
+
+        <div class="space-y-1.5 pt-1">
+          <div class="flex justify-between items-center text-xs font-medium text-slate-300">
+            <span>Macro Calorie Split</span>
+            <span id="macroSplitText" class="text-emerald-300 font-semibold">57% Carbs • 12% Protein • 31% Fat</span>
+          </div>
+          <div class="w-full h-2.5 rounded-full overflow-hidden flex bg-slate-700">
+            <div id="barCarbs" class="bg-emerald-400 h-full transition-all duration-500" style="width: 57%"></div>
+            <div id="barProtein" class="bg-blue-400 h-full transition-all duration-500" style="width: 12%"></div>
+            <div id="barFats" class="bg-rose-400 h-full transition-all duration-500" style="width: 31%"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-slate-700/80 text-xs">
+          <div class="bg-slate-800/40 p-2 rounded-lg"><span class="text-slate-400 block">Dietary Fiber</span><span class="font-bold text-white" id="totalFiber">7.8g</span></div>
+          <div class="bg-slate-800/40 p-2 rounded-lg"><span class="text-slate-400 block">Vitamin C</span><span class="font-bold text-white" id="totalVitC">28.5mg</span></div>
+          <div class="bg-slate-800/40 p-2 rounded-lg"><span class="text-slate-400 block">Vitamin A</span><span class="font-bold text-white" id="totalVitA">850mcg</span></div>
+          <div class="bg-slate-800/40 p-2 rounded-lg"><span class="text-slate-400 block">Vitamin B12</span><span class="font-bold text-white" id="totalVitB12">0.5mcg</span></div>
+          <div class="bg-slate-800/40 p-2 rounded-lg col-span-2 sm:col-span-1"><span class="text-slate-400 block">Iron & Calcium</span><span class="font-bold text-white" id="totalMinerals">4.8mg / 95mg</span></div>
+        </div>
+      </div>
+
+      <!-- ITEM-WISE NUTRITION BREAKDOWN -->
+      <div class="space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Dishes Breakdown (<span id="detectedCountLabel">5</span>)</h3>
+            <p class="text-xs text-slate-500">Every dish on this plate with individual weight and nutrients in grams:</p>
+          </div>
+          <button id="addItemBtn" type="button" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition">+ Add Custom Dish</button>
+        </div>
+        <div id="itemsContainer" class="space-y-3"></div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="bg-white border-t border-slate-200 py-3 text-center text-xs text-slate-400 mt-auto">
+    NutriScan App • Smart Food Photo & Macro Analyzer
+  </footer>
+
+  <script>
+    // Precision Base-100g Nutrition Database (Zero Rounding Drift)
+    const mealDatabase = {
+      'paneer-paratha': {
+        title: 'Paneer Paratha with Dahi & Makhan',
+        items: [
+          { name: 'Paneer Paratha - 2 pcs (Breads & Dairy)', icon: '🫓', weight: 180, cal: 420, p: 14.0, c: 48.0, f: 18.0, fib: 5.0, vc: 4, va: 80, vb: 0.2, fe: 2.4, ca: 160 },
+          { name: 'Taaza Dahi (Dairy)', icon: '🍶', weight: 100, cal: 95, p: 3.8, c: 4.8, f: 4.5, fib: 0, vc: 1.0, va: 45, vb: 0.4, fe: 0.1, ca: 150 },
+          { name: 'Desi Makhan / Butter (Fats)', icon: '🧈', weight: 15, cal: 108, p: 0.1, c: 0.1, f: 12.0, fib: 0, vc: 0, va: 95, vb: 0, fe: 0, ca: 4 },
+          { name: 'Achar / Chutney (Condiments)', icon: '🌶️', weight: 15, cal: 20, p: 0.2, c: 1.5, f: 1.5, fib: 0.4, vc: 2, va: 20, vb: 0, fe: 0.1, ca: 6 }
+        ]
+      },
+
+      'kabuli-pulao': {
+        title: 'Kabuli Pulao & Shorba Platter',
+        items: [
+          { id: 'dish-pulao', name: 'Kabuli Pulao (Grains & Dry Fruits)', icon: '🍛', weight: 260, base100: { calories: 169.2, protein: 3.65, carbs: 27.69, fats: 4.62, fiber: 1.73, vitC: 2.3, vitA: 261, vitB12: 0.0, iron: 0.85, calcium: 13.5 } },
+          { id: 'dish-shorba', name: 'Yakhni Shorba (Soup / Broth)', icon: '🥣', weight: 150, base100: { calories: 50.0, protein: 4.0, carbs: 2.0, fats: 2.67, fiber: 0.0, vitC: 1.33, vitA: 26.7, vitB12: 0.27, iron: 0.8, calcium: 13.3 } },
+          { id: 'dish-laal-chutney', name: 'Laal Chutney (Condiments / Dip)', icon: '🌶️', weight: 40, base100: { calories: 75.0, protein: 2.0, carbs: 12.5, fats: 2.5, fiber: 2.5, vitC: 22.5, vitA: 187.5, vitB12: 0.0, iron: 1.25, calcium: 30 } },
+          { id: 'dish-yogurt-dip', name: 'Spiced Yogurt Sauce (Dairy / Dip)', icon: '🍶', weight: 40, base100: { calories: 112.5, protein: 3.75, carbs: 7.5, fats: 7.5, fiber: 0.75, vitC: 3.75, vitA: 62.5, vitB12: 0.25, iron: 0.75, calcium: 50 } },
+          { id: 'dish-salad-lemon', name: 'Taaza Salad (Veggies)', icon: '🥗', weight: 70, base100: { calories: 25.7, protein: 1.14, carbs: 5.0, fats: 0.29, fiber: 2.86, vitC: 14.3, vitA: 42.9, vitB12: 0.0, iron: 0.86, calcium: 11.4 } }
+        ]
+      },
+      'dosa-platter': {
+        title: 'South Indian Masala Dosa Platter',
+        items: [
+          { id: 'dish-dosa', name: 'Masala Dosa (Grains / Fermented Crepe)', icon: '🥞', weight: 180, base100: { calories: 188.9, protein: 3.44, carbs: 28.89, fats: 6.67, fiber: 1.78, vitC: 0.0, vitA: 11.1, vitB12: 0.0, iron: 1.0, calcium: 17.8 } },
+          { id: 'dish-aloo', name: 'Aloo Masala (Veggies / Potato Filling)', icon: '🥔', weight: 120, base100: { calories: 120.8, protein: 2.33, carbs: 20.0, fats: 3.75, fiber: 2.5, vitC: 15.0, vitA: 37.5, vitB12: 0.0, iron: 1.0, calcium: 18.3 } },
+          { id: 'dish-sambar', name: 'Sambar (Lentils & Veggies)', icon: '🥘', weight: 120, base100: { calories: 70.8, protein: 3.17, carbs: 10.83, fats: 1.67, fiber: 2.92, vitC: 7.5, vitA: 100.0, vitB12: 0.0, iron: 1.25, calcium: 25.0 } },
+          { id: 'dish-nariyal', name: 'Nariyal Chutney (Coconut / Condiments)', icon: '🥥', weight: 40, base100: { calories: 237.5, protein: 3.0, carbs: 7.5, fats: 22.5, fiber: 4.5, vitC: 3.75, vitA: 37.5, vitB12: 0.0, iron: 1.5, calcium: 30.0 } },
+          { id: 'dish-tamatar', name: 'Tamatar Chutney (Tomato / Condiments)', icon: '🍅', weight: 40, base100: { calories: 95.0, protein: 2.0, carbs: 13.75, fats: 3.75, fiber: 3.0, vitC: 21.25, vitA: 212.5, vitB12: 0.0, iron: 1.25, calcium: 35.0 } },
+          { id: 'dish-pudina', name: 'Hari Pudina Chutney (Mint / Condiments)', icon: '🌿', weight: 30, base100: { calories: 60.0, protein: 2.0, carbs: 7.33, fats: 2.67, fiber: 3.67, vitC: 40.0, vitA: 366.7, vitB12: 0.0, iron: 2.67, calcium: 80.0 } }
+        ]
+      },
+      'royal-thali': {
+        title: 'Royal Indian Grand Thali',
+        items: [
+          { id: 'dish-chana', name: 'Chana Masala (Legumes)', icon: '🧆', weight: 90, base100: { calories: 138.9, protein: 7.22, carbs: 20.0, fats: 3.56, fiber: 6.11, vitC: 4.4, vitA: 88.9, vitB12: 0.0, iron: 2.67, calcium: 50.0 } },
+          { id: 'dish-bhindi', name: 'Bhindi Sabzi (Veggies)', icon: '🥢', weight: 80, base100: { calories: 93.8, protein: 2.75, carbs: 10.0, fats: 5.0, fiber: 4.0, vitC: 20.0, vitA: 175.0, vitB12: 0.0, iron: 1.5, calcium: 75.0 } },
+          { id: 'dish-daal', name: 'Peeli Daal (Lentils)', icon: '🍲', weight: 100, base100: { calories: 95.0, protein: 5.8, carbs: 12.5, fats: 2.5, fiber: 3.5, vitC: 3.0, vitA: 90.0, vitB12: 0.0, iron: 1.8, calcium: 30.0 } },
+          { id: 'dish-chawal', name: 'Chawal (Grains)', icon: '🍚', weight: 180, base100: { calories: 130.6, protein: 2.67, carbs: 28.61, fats: 0.44, fiber: 0.67, vitC: 0.0, vitA: 0.0, vitB12: 0.0, iron: 0.33, calcium: 10.0 } },
+          { id: 'dish-roti', name: 'Roti (Breads)', icon: '🫓', weight: 70, base100: { calories: 235.7, protein: 7.14, carbs: 47.14, fats: 2.57, fiber: 6.0, vitC: 0.0, vitA: 0.0, vitB12: 0.0, iron: 2.43, calcium: 31.4 } },
+          { id: 'dish-dahi', name: 'Dahi (Dairy)', icon: '🍶', weight: 60, base100: { calories: 96.7, protein: 3.67, carbs: 4.67, fats: 6.67, fiber: 0.0, vitC: 0.83, vitA: 66.7, vitB12: 0.5, iron: 0.17, calcium: 150.0 } },
+          { id: 'dish-salad', name: 'Salad (Veggies)', icon: '🥗', weight: 50, base100: { calories: 30.0, protein: 1.4, carbs: 6.0, fats: 0.2, fiber: 3.0, vitC: 11.0, vitA: 180.0, vitB12: 0.0, iron: 0.8, calcium: 24.0 } }
+        ]
+      },
+      'biryani-plate': {
+        title: 'Dum Biryani with Raita & Salan',
+        items: [
+          { id: 'dish-biryani', name: 'Dum Biryani (Grains / Spiced Rice)', icon: '🍚', weight: 250, base100: { calories: 176.0, protein: 7.2, carbs: 23.2, fats: 5.6, fiber: 1.4, vitC: 1.6, vitA: 32.0, vitB12: 0.2, iron: 0.88, calcium: 14.0 } },
+          { id: 'dish-raita', name: 'Onion Cucumber Raita (Dairy)', icon: '🍶', weight: 80, base100: { calories: 81.3, protein: 3.5, carbs: 5.63, fats: 4.38, fiber: 0.75, vitC: 2.5, vitA: 56.3, vitB12: 0.5, iron: 0.25, calcium: 137.5 } },
+          { id: 'dish-salan', name: 'Mirchi Ka Salan (Curry / Gravy)', icon: '🥘', weight: 80, base100: { calories: 127.5, protein: 2.75, carbs: 6.5, fats: 10.0, fiber: 2.25, vitC: 18.75, vitA: 162.5, vitB12: 0.0, iron: 1.0, calcium: 35.0 } },
+          { id: 'dish-egg-b', name: 'Ubla Anda (Eggs / Protein)', icon: '🥚', weight: 50, base100: { calories: 156.0, protein: 12.6, carbs: 1.2, fats: 10.6, fiber: 0.0, vitC: 0.0, vitA: 150.0, vitB12: 1.2, iron: 1.8, calcium: 50.0 } }
+        ]
+      },
+      'roti-sabzi': {
+        title: 'Ghar Ki Thali (Roti, Sabzi & Dal)',
+        items: [
+          { id: 'dish-rotis', name: 'Gehun Ki Roti - 3 pcs (Breads)', icon: '🫓', weight: 105, base100: { calories: 233.3, protein: 7.14, carbs: 46.67, fats: 2.57, fiber: 6.0, vitC: 0.0, vitA: 0.0, vitB12: 0.0, iron: 2.38, calcium: 31.4 } },
+          { id: 'dish-paneer-sabzi', name: 'Paneer Veg Sabzi (Dairy & Veggies)', icon: '🥦', weight: 140, base100: { calories: 125.0, protein: 6.07, carbs: 5.86, fats: 8.21, fiber: 2.71, vitC: 15.71, vitA: 114.3, vitB12: 0.43, iron: 0.86, calcium: 114.3 } },
+          { id: 'dish-dal-h', name: 'Yellow Daal Tadka (Lentils)', icon: '🍲', weight: 100, base100: { calories: 85.0, protein: 4.8, carbs: 12.0, fats: 1.8, fiber: 3.2, vitC: 2.0, vitA: 70.0, vitB12: 0.0, iron: 1.5, calcium: 25.0 } },
+          { id: 'dish-salad-h', name: 'Kachha Salad (Veggies)', icon: '🥗', weight: 50, base100: { calories: 26.0, protein: 1.4, carbs: 5.6, fats: 0.2, fiber: 2.8, vitC: 12.0, vitA: 170.0, vitB12: 0.0, iron: 0.8, calcium: 20.0 } }
+        ]
+      },
+      'rajma-chawal': {
+        title: 'Punjabi Rajma Chawal Meal',
+        items: [
+          { id: 'dish-rajma-curry', name: 'Rajma Gravy (Legumes / Beans)', icon: '🧆', weight: 180, base100: { calories: 116.7, protein: 5.83, carbs: 17.22, fats: 2.5, fiber: 4.17, vitC: 3.33, vitA: 77.8, vitB12: 0.0, iron: 1.78, calcium: 30.6 } },
+          { id: 'dish-rice-r', name: 'Ubale Chawal (Grains)', icon: '🍚', weight: 180, base100: { calories: 130.6, protein: 2.67, carbs: 28.61, fats: 0.44, fiber: 0.67, vitC: 0.0, vitA: 0.0, vitB12: 0.0, iron: 0.33, calcium: 10.0 } },
+          { id: 'dish-dahi-r', name: 'Taaza Dahi (Dairy)', icon: '🍶', weight: 40, base100: { calories: 95.0, protein: 3.75, carbs: 4.5, fats: 6.25, fiber: 0.0, vitC: 0.75, vitA: 62.5, vitB12: 0.5, iron: 0.25, calcium: 137.5 } },
+          { id: 'dish-pyaz', name: 'Pyaaz Nimbu Salad (Veggies)', icon: '🧅', weight: 40, base100: { calories: 30.0, protein: 1.0, carbs: 6.5, fats: 0.25, fiber: 2.0, vitC: 12.5, vitA: 37.5, vitB12: 0.0, iron: 0.5, calcium: 20.0 } }
+        ]
+      }
+    };
+
+    function calculateItemNutrients(item) {
+      const w = item.weight, b = item.base100;
+      item.calories = Math.round((b.calories * w) / 100);
+      item.protein = parseFloat(((b.protein * w) / 100).toFixed(1));
+      item.carbs = parseFloat(((b.carbs * w) / 100).toFixed(1));
+      item.fats = parseFloat(((b.fats * w) / 100).toFixed(1));
+      item.fiber = parseFloat(((b.fiber * w) / 100).toFixed(1));
+      item.vitC = parseFloat(((b.vitC * w) / 100).toFixed(1));
+      item.vitA = Math.round((b.vitA * w) / 100);
+      item.vitB12 = parseFloat(((b.vitB12 * w) / 100).toFixed(1));
+      item.iron = parseFloat(((b.iron * w) / 100).toFixed(1));
+      item.calcium = Math.round((b.calcium * w) / 100);
+    }
+
+    function initializeMealItems(items) {
+      items.forEach(calculateItemNutrients);
+      return items;
+    }
+
+    
+    // Configured Gemini API Key
+    const ACTIVE_GEMINI_KEY = "AQ.Ab8RN6ItiyAOwGH4e6K6s14IbAOYOSikbdvgT06ghQSmcKMFCw";
+
+    // Call Gemini 1.5 Flash Vision API directly from browser
+    async function analyzeWithGeminiAI(base64Data) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${ACTIVE_GEMINI_KEY}`;
+
+      const prompt = `You are an expert clinical dietitian and food vision AI.
+Analyze this meal photo carefully.
+1. Identify what dish/meal is on the plate (e.g. "Paneer Paratha with Dahi & Makhan", "Masala Dosa Platter", "Chicken Biryani", "Rajma Chawal", etc.).
+2. Break down every visible food component into realistic portion weights in grams (g) and accurate nutritional facts:
+- name: Dish name in Hinglish followed by category in brackets, e.g. "Paneer Paratha (Breads & Dairy)", "Taaza Dahi (Dairy)", "Desi Makhan (Fats)", "Achar (Condiments)"
+- icon: Single relevant food emoji
+- weight: Portion weight in grams (number)
+- cal: Estimated calories in kcal (number)
+- p: Protein in grams (number)
+- c: Carbohydrates in grams (number)
+- f: Total fats in grams (number)
+- fib: Dietary fiber in grams (number)
+- vc: Vitamin C in mg (number)
+- va: Vitamin A in mcg (number)
+- vb: Vitamin B12 in mcg (number)
+- fe: Iron in mg (number)
+- ca: Calcium in mg (number)
+
+Return ONLY a valid JSON object in this exact schema:
+{
+  "title": "Short title of the meal",
+  "items": [
+    {
+      "name": "...",
+      "icon": "...",
+      "weight": 100,
+      "cal": 150,
+      "p": 5.0,
+      "c": 20.0,
+      "f": 4.0,
+      "fib": 2.0,
+      "vc": 5.0,
+      "va": 50,
+      "vb": 0.1,
+      "fe": 1.0,
+      "ca": 30
+    }
+  ]
+}`;
+
+      const payload = {
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+          ]
+        }],
+        generationConfig: {
+          response_mime_type: "application/json"
+        }
+      };
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': ACTIVE_GEMINI_KEY
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || 'Gemini API call failed');
+      }
+
+      const data = await res.json();
+      const rawText = data.candidates[0].content.parts[0].text;
+      return JSON.parse(rawText);
+    }
+
+    let currentMealKey = 'kabuli-pulao';
+    let currentItems = initializeMealItems(JSON.parse(JSON.stringify(mealDatabase['kabuli-pulao'].items)));
+    let mealHistory = [];
+    let dailyGoals = { calories: 2000, protein: 130, carbs: 220, fats: 65 };
+
+    try {
+      const savedGoals = localStorage.getItem('nutriscan_custom_goals');
+      if (savedGoals) dailyGoals = JSON.parse(savedGoals);
+      const savedHistory = localStorage.getItem('nutriscan_history');
+      if (savedHistory) mealHistory = JSON.parse(savedHistory);
+    } catch (e) {}
+
+    function getTodayDateKey() { return new Date().toISOString().split('T')[0]; }
+
+    function showToast(message, icon = 'ℹ️') {
+      const toast = document.getElementById('toastNotification');
+      document.getElementById('toastMessage').textContent = message;
+      document.getElementById('toastIcon').textContent = icon;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 2500);
+    }
+
+    document.getElementById('todayDateLabel').textContent = new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    document.getElementById('summaryGoalText').textContent = `${dailyGoals.calories} kcal • ${dailyGoals.protein}g Protein`;
+
+    // Goals Modal
+    document.getElementById('editGoalsBtn').addEventListener('click', () => {
+      document.getElementById('goalCaloriesInput').value = dailyGoals.calories;
+      document.getElementById('goalProteinInput').value = dailyGoals.protein;
+      document.getElementById('goalCarbsInput').value = dailyGoals.carbs;
+      document.getElementById('goalFatsInput').value = dailyGoals.fats;
+      document.getElementById('goalsModal').classList.remove('hidden');
+    });
+    document.getElementById('closeGoalsModal').addEventListener('click', () => document.getElementById('goalsModal').classList.add('hidden'));
+    document.getElementById('saveGoalsBtn').addEventListener('click', () => {
+      dailyGoals = {
+        calories: parseInt(document.getElementById('goalCaloriesInput').value) || 2000,
+        protein: parseInt(document.getElementById('goalProteinInput').value) || 130,
+        carbs: parseInt(document.getElementById('goalCarbsInput').value) || 220,
+        fats: parseInt(document.getElementById('goalFatsInput').value) || 65
+      };
+      try { localStorage.setItem('nutriscan_custom_goals', JSON.stringify(dailyGoals)); } catch (e) {}
+      document.getElementById('summaryGoalText').textContent = `${dailyGoals.calories} kcal • ${dailyGoals.protein}g Protein`;
+      updateHistoryUI();
+      document.getElementById('goalsModal').classList.add('hidden');
+      showToast('Daily macro goals updated!', '🎯');
+    });
+
+    // Add Custom Dish Modal
+    document.getElementById('addItemBtn').addEventListener('click', () => {
+      document.getElementById('newDishNameInput').value = '';
+      document.getElementById('newDishWeightInput').value = '100';
+      document.getElementById('addDishModal').classList.remove('hidden');
+    });
+    document.getElementById('closeAddDishModal').addEventListener('click', () => document.getElementById('addDishModal').classList.add('hidden'));
+    document.getElementById('confirmAddDishBtn').addEventListener('click', () => {
+      const name = document.getElementById('newDishNameInput').value.trim() || 'Custom Food Item';
+      const category = document.getElementById('newDishCategorySelect').value;
+      const weight = parseInt(document.getElementById('newDishWeightInput').value) || 100;
+
+      let base = { calories: 120, protein: 5.0, carbs: 15.0, fats: 4.0, fiber: 2.0, vitC: 5.0, vitA: 50, vitB12: 0.1, iron: 1.0, calcium: 30 };
+      let icon = '🍲';
+      if (category.includes('Dairy')) { base = { calories: 150, protein: 9.0, carbs: 4.0, fats: 10.0, fiber: 0.0, vitC: 1.0, vitA: 80, vitB12: 0.5, iron: 0.2, calcium: 150 }; icon = '🧀'; }
+      else if (category.includes('Grains')) { base = { calories: 140, protein: 3.5, carbs: 28.0, fats: 0.8, fiber: 1.2, vitC: 0.0, vitA: 0, vitB12: 0.0, iron: 0.5, calcium: 15 }; icon = '🍚'; }
+      else if (category.includes('Breads')) { base = { calories: 240, protein: 7.5, carbs: 48.0, fats: 2.5, fiber: 5.5, vitC: 0.0, vitA: 0, vitB12: 0.0, iron: 2.2, calcium: 30 }; icon = '🫓'; }
+      else if (category.includes('Lentils')) { base = { calories: 95, protein: 6.0, carbs: 12.0, fats: 2.5, fiber: 4.0, vitC: 3.0, vitA: 80, vitB12: 0.0, iron: 1.8, calcium: 30 }; icon = '🍲'; }
+      else if (category.includes('Veggies')) { base = { calories: 60, protein: 2.5, carbs: 8.0, fats: 2.0, fiber: 3.5, vitC: 25.0, vitA: 150, vitB12: 0.0, iron: 1.2, calcium: 40 }; icon = '🥦'; }
+      else if (category.includes('Eggs')) { base = { calories: 155, protein: 13.0, carbs: 1.0, fats: 11.0, fiber: 0.0, vitC: 0.0, vitA: 140, vitB12: 1.1, iron: 1.8, calcium: 50 }; icon = '🥚'; }
+
+      const newDish = { id: 'dish-custom-' + Date.now(), name: `${name} (${category})`, icon: icon, weight: weight, base100: base };
+      calculateItemNutrients(newDish);
+      currentItems.push(newDish);
+      renderItems();
+      calculateAndRenderTotals();
+      document.getElementById('addDishModal').classList.add('hidden');
+      showToast(`Added ${name}!`, '✓');
+    });
+
+    // History Modal
+    document.getElementById('viewHistoryBtn').addEventListener('click', () => { renderHistoryModal(); document.getElementById('historyModal').classList.remove('hidden'); });
+    document.getElementById('closeHistoryModal').addEventListener('click', () => document.getElementById('historyModal').classList.add('hidden'));
+    document.getElementById('closeHistoryModal2').addEventListener('click', () => document.getElementById('historyModal').classList.add('hidden'));
+    document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+      mealHistory = [];
+      try { localStorage.removeItem('nutriscan_history'); } catch (e) {}
+      updateHistoryUI();
+      renderHistoryModal();
+      showToast('Diary cleared!', '🗑️');
+    });
+
+    // Mobile Image Compression (Max 1200px Canvas)
+    function compressAndDisplayImage(file) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          const maxDim = 1200;
+          let w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+            else { w = Math.round((w * maxDim) / h); h = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+
+          document.getElementById('imagePreview').src = canvas.toDataURL('image/jpeg', 0.85);
+          document.getElementById('uploadPrompt').classList.add('hidden');
+          document.getElementById('previewContainer').classList.remove('hidden');
+          document.getElementById('resultsSection').classList.remove('hidden');
+
+          const cleanName = file.name || 'Mobile Camera Photo';
+          document.getElementById('imageTagText').textContent = `Uploaded: ${cleanName}`;
+
+          // Extract pure base64 (remove data:image/jpeg;base64,)
+          const pureBase64 = compressedDataUrl.split(',')[1];
+          
+          // Trigger scan laser animation & status
+          const scanLaser = document.getElementById('scanLaser');
+          scanLaser.classList.remove('hidden');
+          showToast('⚡ Gemini AI is scanning your food photo...', '🤖');
+
+          analyzeWithGeminiAI(pureBase64)
+            .then(aiResult => {
+              scanLaser.classList.add('hidden');
+              if (aiResult && aiResult.items && aiResult.items.length > 0) {
+                plateTitle.textContent = aiResult.title || 'AI Identified Meal';
+                currentItems = initializeMealItems(aiResult.items);
+                renderItems();
+                calculateAndRenderTotals();
+                showToast(`✓ Gemini detected: ${aiResult.title}`, '✨');
+              } else {
+                throw new Error('No items returned');
+              }
+            })
+            .catch(err => {
+              scanLaser.classList.add('hidden');
+              console.warn('Gemini API notice:', err.message);
+              // Fallback based on filename or popular default
+              const lower = cleanName.toLowerCase();
+              if (lower.includes('paratha') || lower.includes('paneer')) applyMealProfile('paneer-paratha');
+              else if (lower.includes('tawa') || lower.includes('pulao')) applyMealProfile('kabuli-pulao');
+              else if (lower.includes('dosa')) applyMealProfile('dosa-platter');
+              else if (lower.includes('thali')) applyMealProfile('royal-thali');
+              else if (lower.includes('biryani')) applyMealProfile('biryani-plate');
+              else {
+                applyMealProfile('paneer-paratha');
+                showToast('Photo loaded! Tap matching dish below.', '📸');
+              }
+            });
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    const fileInput = document.getElementById('fileInput');
+    fileInput.addEventListener('change', (e) => { if (e.target.files && e.target.files[0]) compressAndDisplayImage(e.target.files[0]); });
+
+    function openFileChooser() { fileInput.value = ''; fileInput.click(); }
+    document.getElementById('topUploadBtn').addEventListener('click', openFileChooser);
+    document.getElementById('changePhotoBtn').addEventListener('click', (e) => { e.stopPropagation(); openFileChooser(); });
+    document.getElementById('clearPhotoBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.value = '';
+      document.getElementById('imagePreview').src = '';
+      document.getElementById('previewContainer').classList.add('hidden');
+      document.getElementById('uploadPrompt').classList.remove('hidden');
+      document.getElementById('resultsSection').classList.add('hidden');
+    });
+    document.getElementById('dropzone').addEventListener('click', (e) => {
+      if (!e.target.closest('#changePhotoBtn') && !e.target.closest('#clearPhotoBtn')) openFileChooser();
+    });
+
+    function applyMealProfile(key) {
+      currentMealKey = key;
+      const profile = mealDatabase[key];
+      if (!profile) return;
+      currentItems = initializeMealItems(JSON.parse(JSON.stringify(profile.items)));
+      document.getElementById('plateTitle').textContent = profile.title;
+      triggerAnalysisAnimation();
+    }
+
+    document.querySelectorAll('.meal-match-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const matchKey = btn.getAttribute('data-match');
+        applyMealProfile(matchKey);
+        showToast(`Loaded ${mealDatabase[matchKey].title}`, '✓');
+      });
+    });
+
+    document.getElementById('dishSearchForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('dishSearchInput');
+      const query = input.value.trim().toLowerCase();
+      if (!query) return;
+      input.value = '';
+
+      if (query.includes('paratha') || query.includes('paneer')) applyMealProfile('paneer-paratha');
+      else if (query.includes('pulao')) applyMealProfile('kabuli-pulao');
+      else if (query.includes('dosa')) applyMealProfile('dosa-platter');
+      else if (query.includes('thali')) applyMealProfile('royal-thali');
+      else if (query.includes('biryani')) applyMealProfile('biryani-plate');
+      else if (query.includes('roti') || query.includes('sabzi')) applyMealProfile('roti-sabzi');
+      else if (query.includes('rajma') || query.includes('chole')) applyMealProfile('rajma-chawal');
+      else {
+        const cap = query.charAt(0).toUpperCase() + query.slice(1);
+        currentItems = [
+          { id: 'custom-main-' + Date.now(), name: `${cap} (Main Dish)`, icon: '🍲', weight: 220, base100: { calories: 145.5, protein: 6.36, carbs: 19.09, fats: 4.55, fiber: 2.27, vitC: 4.55, vitA: 43.2, vitB12: 0.14, iron: 1.09, calcium: 27.3 } },
+          { id: 'custom-side-' + Date.now(), name: 'Roti / Grains (Breads)', icon: '🫓', weight: 70, base100: { calories: 235.7, protein: 7.14, carbs: 47.14, fats: 2.57, fiber: 6.0, vitC: 0.0, vitA: 0.0, vitB12: 0.0, iron: 2.43, calcium: 31.4 } },
+          { id: 'custom-salad-' + Date.now(), name: 'Salad (Veggies)', icon: '🥗', weight: 50, base100: { calories: 30.0, protein: 1.4, carbs: 6.0, fats: 0.2, fiber: 3.0, vitC: 12.0, vitA: 180.0, vitB12: 0.0, iron: 0.8, calcium: 24.0 } }
+        ];
+        initializeMealItems(currentItems);
+        document.getElementById('plateTitle').textContent = `${cap} Meal`;
+        triggerAnalysisAnimation();
+        showToast(`Created ${cap} meal!`, '✨');
+      }
+    });
+
+    function triggerAnalysisAnimation() {
+      const scanLaser = document.getElementById('scanLaser');
+      scanLaser.classList.remove('hidden');
+      setTimeout(() => {
+        scanLaser.classList.add('hidden');
+        document.getElementById('resultsSection').classList.remove('hidden');
+        renderItems();
+        calculateAndRenderTotals();
+      }, 350);
+    }
+
+    function renderItems() {
+      const container = document.getElementById('itemsContainer');
+      container.innerHTML = '';
+      document.getElementById('itemCountBadge').textContent = `${currentItems.length} Dishes`;
+      document.getElementById('detectedCountLabel').textContent = currentItems.length;
+
+      currentItems.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'bg-white rounded-xl p-4 border border-slate-200 shadow-sm';
+        div.innerHTML = `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div class="flex items-center space-x-3">
+              <span class="text-2xl p-2 bg-slate-50 rounded-xl border border-slate-100">${item.icon || '🍽️'}</span>
+              <div>
+                <h4 class="font-bold text-slate-900 text-sm sm:text-base leading-snug">${item.name}</h4>
+                <span class="text-xs text-emerald-600 font-medium">Dish ${index + 1}</span>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2 self-start sm:self-auto">
+              <span class="text-xs font-semibold text-slate-500">Weight:</span>
+              <div class="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+                <button type="button" class="btn-weight-down px-2 py-0.5 text-slate-600 hover:text-slate-900 font-bold text-xs" data-index="${index}">−</button>
+                <span class="px-2 text-xs font-bold text-slate-800">${item.weight}g</span>
+                <button type="button" class="btn-weight-up px-2 py-0.5 text-slate-600 hover:text-slate-900 font-bold text-xs" data-index="${index}">+</button>
+              </div>
+              <button type="button" class="btn-delete-item text-slate-400 hover:text-rose-500 p-1 text-xs ml-1" data-index="${index}" title="Remove dish">🗑️</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3">
+            <div class="bg-amber-50/60 p-2.5 rounded-lg border border-amber-100/80"><span class="text-[11px] font-semibold text-amber-700 block">Calories</span><span class="text-base font-bold text-slate-900">${Math.round(item.calories)}</span><span class="text-[10px] text-slate-500">kcal</span></div>
+            <div class="bg-blue-50/60 p-2.5 rounded-lg border border-blue-100/80"><span class="text-[11px] font-semibold text-blue-700 block">Protein</span><span class="text-base font-bold text-slate-900">${item.protein.toFixed(1)}</span><span class="text-[10px] text-slate-500">grams (g)</span></div>
+            <div class="bg-emerald-50/60 p-2.5 rounded-lg border border-emerald-100/80"><span class="text-[11px] font-semibold text-emerald-700 block">Carbs</span><span class="text-base font-bold text-slate-900">${item.carbs.toFixed(1)}</span><span class="text-[10px] text-slate-500">grams (g)</span></div>
+            <div class="bg-rose-50/60 p-2.5 rounded-lg border border-rose-100/80"><span class="text-[11px] font-semibold text-rose-700 block">Total Fats</span><span class="text-base font-bold text-slate-900">${item.fats.toFixed(1)}</span><span class="text-[10px] text-slate-500">grams (g)</span></div>
+          </div>
+          <div class="mt-2.5 flex flex-wrap gap-2 text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">
+            <span>Fiber: <strong class="text-slate-700">${item.fiber.toFixed(1)}g</strong></span>
+            <span>Vitamin C: <strong class="text-slate-700">${item.vitC.toFixed(1)}mg</strong></span>
+            <span>Vitamin A: <strong class="text-slate-700">${Math.round(item.vitA)}mcg</strong></span>
+            <span>Iron: <strong class="text-slate-700">${item.iron.toFixed(1)}mg</strong></span>
+            <span>Calcium: <strong class="text-slate-700">${Math.round(item.calcium)}mg</strong></span>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      document.querySelectorAll('.btn-weight-up').forEach(btn => {
+        btn.addEventListener('click', (e) => adjustItemWeight(parseInt(e.target.getAttribute('data-index')), 15));
+      });
+      document.querySelectorAll('.btn-weight-down').forEach(btn => {
+        btn.addEventListener('click', (e) => adjustItemWeight(parseInt(e.target.getAttribute('data-index')), -15));
+      });
+      document.querySelectorAll('.btn-delete-item').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const idx = parseInt(e.target.getAttribute('data-index'));
+          if (currentItems.length > 1) {
+            const removed = currentItems.splice(idx, 1)[0];
+            renderItems();
+            calculateAndRenderTotals();
+            showToast(`Removed ${removed.name}`, '🗑️');
+          } else {
+            showToast('Plate must have at least 1 dish!', '⚠️');
+          }
+        });
+      });
+    }
+
+    function adjustItemWeight(index, delta) {
+      const item = currentItems[index];
+      const newWeight = Math.max(15, item.weight + delta);
+      if (item.weight === newWeight) return;
+      item.weight = newWeight;
+      calculateItemNutrients(item);
+      renderItems();
+      calculateAndRenderTotals();
+    }
+
+    function calculateAndRenderTotals() {
+      let w = 0, cals = 0, prot = 0, carbs = 0, fats = 0, fiber = 0, vc = 0, va = 0, vb = 0, fe = 0, ca = 0;
+      currentItems.forEach(i => {
+        w += i.weight; cals += i.calories; prot += i.protein; carbs += i.carbs; fats += i.fats;
+        fiber += i.fiber; vc += i.vitC; va += i.vitA; vb += i.vitB12; fe += i.iron; ca += i.calcium;
+      });
+
+      document.getElementById('totalWeight').textContent = Math.round(w).toLocaleString() + 'g';
+      document.getElementById('totalCalories').textContent = Math.round(cals);
+      document.getElementById('totalProtein').textContent = prot.toFixed(1);
+      document.getElementById('totalCarbs').textContent = carbs.toFixed(1);
+      document.getElementById('totalFats').textContent = fats.toFixed(1);
+      document.getElementById('totalFiber').textContent = fiber.toFixed(1) + 'g';
+      document.getElementById('totalVitC').textContent = vc.toFixed(1) + 'mg';
+      document.getElementById('totalVitA').textContent = Math.round(va) + 'mcg';
+      document.getElementById('totalVitB12').textContent = vb.toFixed(1) + 'mcg';
+      document.getElementById('totalMinerals').textContent = `${fe.toFixed(1)}mg / ${Math.round(ca)}mg`;
+
+      const cCal = carbs * 4, pCal = prot * 4, fCal = fats * 9;
+      const totM = cCal + pCal + fCal || 1;
+      const cPct = Math.round((cCal / totM) * 100);
+      const pPct = Math.round((pCal / totM) * 100);
+      const fPct = Math.max(0, 100 - cPct - pPct);
+
+      document.getElementById('barCarbs').style.width = cPct + '%';
+      document.getElementById('barProtein').style.width = pPct + '%';
+      document.getElementById('barFats').style.width = fPct + '%';
+      document.getElementById('macroSplitText').textContent = `${cPct}% Carbs • ${pPct}% Protein • ${fPct}% Fat`;
+    }
+
+    document.getElementById('saveMealBtn').addEventListener('click', () => {
+      let cals = 0, prot = 0, carbs = 0, fats = 0;
+      currentItems.forEach(i => { cals += i.calories; prot += i.protein; carbs += i.carbs; fats += i.fats; });
+
+      const mealEntry = {
+        id: Date.now(),
+        date: getTodayDateKey(),
+        title: document.getElementById('plateTitle').textContent,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        calories: Math.round(cals),
+        protein: parseFloat(prot.toFixed(1)),
+        carbs: parseFloat(carbs.toFixed(1)),
+        fats: parseFloat(fats.toFixed(1)),
+        itemCount: currentItems.length,
+        itemsSummary: currentItems.map(i => `${i.name} (${i.weight}g)`).join(', ')
+      };
+
+      mealHistory.push(mealEntry);
+      try { localStorage.setItem('nutriscan_history', JSON.stringify(mealHistory)); } catch (e) {}
+      updateHistoryUI();
+      showToast('Meal saved to Today\'s Diary!', '💾');
+    });
+
+    function updateHistoryUI() {
+      const todayKey = getTodayDateKey();
+      const todaysMeals = mealHistory.filter(m => m.date === todayKey || !m.date);
+      document.getElementById('historyBadgeCount').textContent = todaysMeals.length;
+
+      let c = 0, p = 0, cb = 0, f = 0;
+      todaysMeals.forEach(m => { c += m.calories; p += m.protein; cb += m.carbs; f += m.fats; });
+
+      document.getElementById('targetCaloriesLabel').textContent = `${Math.round(c)} / ${dailyGoals.calories} kcal`;
+      document.getElementById('targetProteinLabel').textContent = `${p.toFixed(1)} / ${dailyGoals.protein}g`;
+      document.getElementById('targetCarbsLabel').textContent = `${cb.toFixed(1)} / ${dailyGoals.carbs}g`;
+      document.getElementById('targetFatsLabel').textContent = `${f.toFixed(1)} / ${dailyGoals.fats}g`;
+
+      document.getElementById('targetCaloriesBar').style.width = Math.min(100, Math.round((c / dailyGoals.calories) * 100)) + '%';
+      document.getElementById('targetProteinBar').style.width = Math.min(100, Math.round((p / dailyGoals.protein) * 100)) + '%';
+      document.getElementById('targetCarbsBar').style.width = Math.min(100, Math.round((cb / dailyGoals.carbs) * 100)) + '%';
+      document.getElementById('targetFatsBar').style.width = Math.min(100, Math.round((f / dailyGoals.fats) * 100)) + '%';
+    }
+
+    function renderHistoryModal() {
+      const container = document.getElementById('historyListContainer');
+      if (mealHistory.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-400"><span class="text-3xl block mb-2">🍽️</span><p class="text-xs">No meals logged yet today.</p></div>`;
+        return;
+      }
+      container.innerHTML = '';
+      mealHistory.slice().reverse().forEach(m => {
+        const d = document.createElement('div');
+        d.className = 'p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5';
+        d.innerHTML = `
+          <div class="flex items-center justify-between font-bold text-slate-800"><span>${m.title}</span><span class="text-slate-400 font-normal">${m.date || 'Today'} • ${m.time}</span></div>
+          <p class="text-[11px] text-slate-500">${m.itemsSummary}</p>
+          <div class="flex items-center gap-3 font-semibold text-slate-700 pt-1 border-t border-slate-200/60">
+            <span class="text-amber-600">${m.calories} kcal</span>
+            <span class="text-blue-600">${m.protein}g Protein</span>
+            <span class="text-emerald-600">${m.carbs}g Carbs</span>
+            <span class="text-rose-600">${m.fats}g Fats</span>
+          </div>
+        `;
+        container.appendChild(d);
+      });
+    }
+
+    renderItems();
+    calculateAndRenderTotals();
+    updateHistoryUI();
+  </script>
+</body>
+</html>
